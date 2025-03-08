@@ -34,6 +34,9 @@ const messagesContainer =
   document.querySelector<HTMLDivElement>('.chat-messages')!;
 const modelSelect = document.querySelector<HTMLSelectElement>('.model-select')!;
 
+// Add message history array at the top level
+const messageHistory: { role: 'user' | 'assistant'; content: string }[] = [];
+
 // Single function that reads and parses the stream.
 async function* parseChunkedStream(stream: ReadableStream<Uint8Array>) {
   const reader = stream.getReader();
@@ -84,6 +87,9 @@ async function handleSubmit(e: Event) {
 
   if (!message) return;
 
+  // Add user message to history
+  messageHistory.push({ role: 'user', content: message });
+
   // Add user message to chat with improved accessibility
   const userMessageHtml = /* html */ `
     <div class="message user" role="listitem" aria-label="User message">
@@ -111,7 +117,7 @@ async function handleSubmit(e: Event) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        messages: [{ role: 'user', content: message }],
+        messages: messageHistory, // Send entire message history
         model,
       }),
     });
@@ -129,6 +135,9 @@ async function handleSubmit(e: Event) {
       contentDiv.innerHTML = await renderMarkdown(fullText);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
+
+    // Add assistant's response to history
+    messageHistory.push({ role: 'assistant', content: fullText });
   } catch (error) {
     contentDiv.textContent = 'Error: Could not get response from API';
     console.error('Error:', error);
