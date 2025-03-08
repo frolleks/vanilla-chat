@@ -1,36 +1,5 @@
 import './style.css';
-
-async function* streamAsyncIterator(stream: ReadableStream<Uint8Array>) {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      yield decoder.decode(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-function processStreamChunk(text: string) {
-  const contentMatches = text.match(/\d+:"([^]*?)(?<!\\)"/g);
-  if (!contentMatches) return '';
-
-  return contentMatches
-    .map((match) => {
-      const quoted = match.match(/\d+:"([^]*?)(?<!\\)"/);
-      if (!quoted) return '';
-
-      return quoted[1]
-        .replace(/\\n/g, '\n')
-        .replace(/\\"/g, '"')
-        .replace(/\\\\/g, '\\');
-    })
-    .join('');
-}
+import { renderMarkdown } from './utils/markdown';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = /* html */ `
   <div class="chat-container">
@@ -44,7 +13,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = /* html */ `
         ></textarea>
         <div class="input-buttons">
           <select class="model-select">
-            <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash</option>
+            <option value="cognitivecomputations/dolphin3.0-mistral-24b:free">Dolphin3.0 Mistral 24B</option>
           </select>
           <div class="right-buttons">
             <button type="submit" class="btn send-btn">
@@ -63,6 +32,49 @@ const messagesContainer =
   document.querySelector<HTMLDivElement>('.chat-messages')!;
 const modelSelect = document.querySelector<HTMLSelectElement>('.model-select')!;
 
+// Single function that reads and parses the stream.
+async function* parseChunkedStream(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value);
+
+      // Remove metadata sections
+      buffer = buffer.replace(/[fed]:\{[^}]+\}/g, '');
+
+      // Match complete tokens only (those ending with a quote)
+      const completeTokens = buffer.match(/0:"[^"]+"/g) || [];
+
+      if (completeTokens.length > 0) {
+        // Get the last complete token's end position
+        const lastTokenEnd =
+          buffer.lastIndexOf(completeTokens[completeTokens.length - 1]) +
+          completeTokens[completeTokens.length - 1].length;
+
+        // Extract content from complete tokens
+        const content = completeTokens
+          .map((token) => token.slice(3, -1)) // Remove 0:" and "
+          .join('') // Changed from join() to join('') to remove commas
+          .replace(/\\"/g, '"') // Handle escaped quotes
+          .replace(/\\n/g, '\n'); // Handle newlines
+
+        // Keep only the incomplete part in the buffer
+        buffer = buffer.slice(lastTokenEnd);
+
+        yield content;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 async function handleSubmit(e: Event) {
   e.preventDefault();
   const message = textarea.value.trim();
@@ -71,22 +83,21 @@ async function handleSubmit(e: Event) {
   if (!message) return;
 
   // Add user message to chat
-  const userMessageHtml = `
+  const userMessageHtml = /* html */ `
     <div class="message user">
       <div class="message-content">${message}</div>
     </div>
   `;
   messagesContainer.insertAdjacentHTML('beforeend', userMessageHtml);
 
-  // Create assistant message container
+  // Prepare an assistant message container
   const assistantMessageDiv = document.createElement('div');
   assistantMessageDiv.className = 'message assistant';
   const contentDiv = document.createElement('div');
-  contentDiv.className = 'message-content';
+  contentDiv.className = 'message-content markdown-body';
   assistantMessageDiv.appendChild(contentDiv);
   messagesContainer.appendChild(assistantMessageDiv);
 
-  // Clear input
   textarea.value = '';
 
   try {
@@ -96,25 +107,23 @@ async function handleSubmit(e: Event) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        messages: [
-          {
-            role: 'user',
-            content: message,
-          },
-        ],
+        messages: [{ role: 'user', content: message }],
         model,
       }),
     });
 
-    if (!response.ok) throw new Error('API request failed');
-    if (!response.body) throw new Error('No response body');
+    if (!response.ok) {
+      throw new Error('API request failed');
+    }
+    if (!response.body) {
+      throw new Error('No response body');
+    }
 
-    for await (const chunk of streamAsyncIterator(response.body)) {
-      const content = processStreamChunk(chunk);
-      if (content) {
-        contentDiv.textContent = (contentDiv.textContent || '') + content;
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
+    let fullText = ''; // Add accumulator for the complete text
+    for await (const parsedText of parseChunkedStream(response.body)) {
+      fullText += parsedText; // Accumulate text
+      contentDiv.innerHTML = await renderMarkdown(fullText);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
   } catch (error) {
     contentDiv.textContent = 'Error: Could not get response from API';
@@ -127,5 +136,5 @@ form.addEventListener('submit', handleSubmit);
 // Auto-resize textarea
 textarea.addEventListener('input', () => {
   textarea.style.height = 'auto';
-  textarea.style.height = textarea.scrollHeight + 'px';
+  textarea.style.height = `${textarea.scrollHeight}px`;
 });
