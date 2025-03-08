@@ -145,11 +145,11 @@ h1 {
 }
 
 .send-btn {
-  background-color: #646cff;
+  background-color: #5158cc; /* Darker for better contrast */
 }
 
 .send-btn:hover {
-  background-color: #535bf2;
+  background-color: #4147a8;
 }
 
 .model-selector {
@@ -171,6 +171,33 @@ h1 {
 .model-select:focus {
   outline: none;
   border-color: #646cff;
+}
+
+.btn:focus,
+.model-select:focus {
+  outline: 2px solid #646cff;
+  outline-offset: 2px;
+}
+
+/* Improve focus visibility */
+*:focus-visible {
+  outline: 2px solid #646cff;
+  outline-offset: 2px;
+}
+
+/* Add skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #646cff;
+  color: white;
+  padding: 8px;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  top: 0;
 }
 
 @media (prefers-color-scheme: light) {

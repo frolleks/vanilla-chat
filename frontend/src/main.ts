@@ -2,21 +2,23 @@ import './style.css';
 import { renderMarkdown } from './utils/markdown';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = /* html */ `
-  <div class="chat-container">
-    <div class="chat-messages"></div>
-    <form class="chat-input-form">
+  <div class="chat-container" role="main" aria-label="Chat Interface">
+    <div class="chat-messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
+    <form class="chat-input-form" aria-label="Message input form">
       <div class="input">
         <textarea 
           placeholder="Send a message..." 
           class="textarea"
+          aria-label="Message input"
+          role="textbox"
           autofocus
         ></textarea>
         <div class="input-buttons">
-          <select class="model-select">
+          <select class="model-select" aria-label="Select AI model">
             <option value="cognitivecomputations/dolphin3.0-mistral-24b:free">Dolphin3.0 Mistral 24B</option>
           </select>
           <div class="right-buttons">
-            <button type="submit" class="btn send-btn">
+            <button type="submit" class="btn send-btn" aria-label="Send message">
               <span>Send</span>
             </button>
           </div>
@@ -82,17 +84,19 @@ async function handleSubmit(e: Event) {
 
   if (!message) return;
 
-  // Add user message to chat
+  // Add user message to chat with improved accessibility
   const userMessageHtml = /* html */ `
-    <div class="message user">
+    <div class="message user" role="listitem" aria-label="User message">
       <div class="message-content">${message}</div>
     </div>
   `;
   messagesContainer.insertAdjacentHTML('beforeend', userMessageHtml);
 
-  // Prepare an assistant message container
+  // Prepare an assistant message container with accessibility attributes
   const assistantMessageDiv = document.createElement('div');
   assistantMessageDiv.className = 'message assistant';
+  assistantMessageDiv.setAttribute('role', 'listitem');
+  assistantMessageDiv.setAttribute('aria-label', 'Assistant message');
   const contentDiv = document.createElement('div');
   contentDiv.className = 'message-content markdown-body';
   assistantMessageDiv.appendChild(contentDiv);
