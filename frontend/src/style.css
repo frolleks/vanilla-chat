@@ -57,6 +57,27 @@ h1 {
   max-width: 48rem;
   margin: 0 auto;
   width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #646cff #1a1a1a;
+}
+
+/* Webkit scrollbar styles */
+.chat-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: none;
+  border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #646cff;
+  border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #535bf2;
 }
 
 .message {
@@ -224,5 +245,12 @@ h1 {
   .model-select {
     background-color: #ffffff;
     border-color: #e5e5e5;
+  }
+  .chat-messages {
+    scrollbar-color: #646cff #f9f9f9;
+  }
+
+  .chat-messages::-webkit-scrollbar-track {
+    background: #f9f9f9;
   }
 }
